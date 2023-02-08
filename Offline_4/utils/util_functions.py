@@ -14,8 +14,14 @@ def pad_inputs(X, pad):
 #      pass
 
 
-def evaluate():
-    pass
+def evaluate(labels, predictions):
+    '''
+    A function to compute the accuracy of the predictions on a scale of 0-1.
+    :param labels:[numpy array]: Training labels (or testing/validation if available)
+    :param predictions:[numpy array]: Predicted labels
+    :return:[float]: a number between [0, 1] denoting the accuracy of the prediction
+    '''
+    return np.mean(np.argmax(labels, axis=0) == np.argmax(predictions, axis=0))
 
 
 def get_batches(data, labels, batch_size=256, shuffle=True):
@@ -49,4 +55,7 @@ def get_batches(data, labels, batch_size=256, shuffle=True):
     if N%batch_size != 0 and num_batches != 0:
         yield (data[num_batches*batch_size:], labels[num_batches*batch_size:])
 
+
+if __name__ == "__main__":
+    evaluate()
 

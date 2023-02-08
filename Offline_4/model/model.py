@@ -56,6 +56,7 @@ class Model:
                 for layer in reversed(self.model):
                     dA = layer.backward(dA)
                     if layer.has_weights():
+                        print("weight updating")
                         if optimization == 'adam':
                             layer.momentum()
                             layer.rmsprop()

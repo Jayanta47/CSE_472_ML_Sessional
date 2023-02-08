@@ -16,9 +16,12 @@ def getWindows(input, output_size, kernel_shape, padding_shape, stride=1, dilate
     # The input is of the shape (batch, channel, height, width) => (N, C, H, W)
     N, C, H, W = input.shape
     if dilate != 0:
-        working_input = np.insert(working_input, range(1, H), 0, axis=2)
-        working_input = np.insert(working_input, range(1, W), 0, axis=3)
-
+        # print("dilate")
+        for i in range(1, dilate+1):
+            working_input = np.insert(working_input, range(1, i*H, i), 0, axis=2)
+            working_input = np.insert(working_input, range(1, i*W, i), 0, axis=3)
+        # print("working_input shape: ", working_input.shape)
+        # print(working_input)
     # pad the input if necessary
     if working_pad != 0:
         working_input = np.pad(working_input, 
@@ -144,12 +147,12 @@ class Convolution:
         # print(self.params['b'].shape)
         # return 
         out = np.einsum('bihwkl,oikl->bohw', windows, self.params['W'])
-        print(out.shape)
+        # print(out.shape)
         # add bias to kernels   
         out += self.params['b']
 
         self.cache['X'] = X
-        self.cache['wd'] = windows
+        self.cache['wd'] = windows 
 
         return out
 
@@ -173,14 +176,21 @@ class Convolution:
         dZ_windows = getWindows(dZ, X.shape, (filter_shape_h, filter_shape_w), 
                              padding_shape = (pad_h, pad_w), stride=1, dilate=self.params['stride'] - 1)
         
-        rot_kern = np.rot90(self.params['W'], 2, axes=(2, 3))
-
+        rot_kern = np.rot90(self.params['W'], 2, axes=(2, 3)) 
+        # print("is null", np.isnan(dZ_windows).any())
+        # print("windows shape: ", windows.shape)
+        # print("dZ shape: ", dZ_windows.shape)
+        # print(rot_kern.shape)
+        
         db = np.sum(dZ, axis=(0, 2, 3))
+        
         dw = np.einsum('bihwkl,bohw->oikl', windows, dZ)
+        
         dX = np.einsum('bohwkl,oikl->bihw', dZ_windows, rot_kern)
-
+        # print("haha")
         self.grads['dW'] = dw
-        self.grads['db'] = db 
+        self.grads['db'] = db.reshape(self.params['b'].shape) 
+        # print(db.shape)
         
         return dX 
 
@@ -200,9 +210,11 @@ class Convolution:
     def rmsprop(self, beta=0.999, amsprop=True):
         if not self.rmsprop_cache:
             self.rmsprop_cache = self.init_cache()
-
         new_dW = beta * self.rmsprop_cache['dW'] + (1 - beta) * (self.grads['dW']**2)
         new_db = beta * self.rmsprop_cache['db'] + (1 - beta) * (self.grads['db']**2)
+        # print("newDB", new_db.shape)
+        # print("grads_db",self.grads['db'].shape )
+        # print("rms db", self.rmsprop_cache['db'].shape)
 
         if amsprop:
             self.rmsprop_cache['dW'] = np.maximum(self.rmsprop_cache['dW'], new_dW)
@@ -211,7 +223,9 @@ class Convolution:
             self.rmsprop_cache['dW'] = new_dW
             self.rmsprop_cache['db'] = new_db
 
-    def apply_grads(self, learning_rate=0.001, l2_penalty=1e-4, optimization='adam', epsilon=1e-8,
+        # print("rms", self.rmsprop_cache['db'].shape)
+
+    def apply_grads(self, learning_rate=0.01, l2_penalty=1e-4, optimization='adam', epsilon=1e-8,
                     correct_bias=False, beta1=0.9, beta2=0.999, iter=999):
         if optimization != 'adam':
             self.params['W'] -= learning_rate * (self.grads['dW'] + l2_penalty * self.params['W'])
@@ -225,7 +239,7 @@ class Convolution:
                 b_second_moment = self.rmsprop_cache['db'] / (1 - beta2 ** iter)
             else:
                 W_first_moment = self.momentum_cache['dW']
-                b_first_moment = self.momentum_cache['db']
+                b_first_moment = self.momentum_cache['db']  
                 W_second_moment = self.rmsprop_cache['dW']
                 b_second_moment = self.rmsprop_cache['db']
 
@@ -239,7 +253,19 @@ class Convolution:
 
 if __name__ == "__main__":
 
-    conv = Convolution(filters = 32, kernel_shape=(12,12), stride=3, padding=0)
-    X = np.random.randn(2, 3, 180, 180)
+    # conv = Convolution(filters = 32, kernel_shape=(8,8), stride=3, padding=0)
+    # X = np.random.randn(2, 3, 128, 128)
+    # out = conv.forward(X)
+    # print(out.shape)
+    # out_b = conv.backward(out)
+    # print(out_b.shape)
+
+    conv = Convolution(filters = 32, kernel_shape=(3,3), stride=3, padding=0)
+    X = np.random.randn(2, 3, 9, 9)
     out = conv.forward(X)
     print(out.shape)
+    out_b = conv.backward(out)
+    print(out_b.shape)
+    conv.momentum()
+    conv.rmsprop()
+    conv.apply_grads()

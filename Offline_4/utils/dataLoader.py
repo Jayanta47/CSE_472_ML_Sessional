@@ -26,7 +26,7 @@ def load_images(path, size=(256,256)):
         data_list.append(pixels)
     return np.asarray(data_list)
 
-def getData(filepath, folder_path, num_samples=100000, dataset='train'):
+def getData(filepath, folder_path, image_shape = (128, 128),num_samples=100000, dataset='train'):
     df = pd.read_csv(filepath)
   
     data = []
@@ -35,7 +35,7 @@ def getData(filepath, folder_path, num_samples=100000, dataset='train'):
         filename = row['filename']
         label = row['label']
         img = cv2.imread(os.path.join(folder_path, filename))
-        img = cv2.resize(img, (180, 180))
+        img = cv2.resize(img, image_shape)
         if img is not None:
             # print(img.shape)
             data.append(img)

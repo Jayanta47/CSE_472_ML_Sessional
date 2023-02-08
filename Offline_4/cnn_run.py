@@ -60,7 +60,7 @@ def main():
     '''
 
     model = Model(
-        Convolution(filters=32, kernel_shape=(12, 12), stride=3, padding=0, name="conv1"),
+        Convolution(filters=32, kernel_shape=(8, 8), stride=3, padding=0, name="conv1"),
         Relu(),
         Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool1"),
         Convolution(filters=96, kernel_shape=(4, 4), stride=2, padding=2, name="conv2"),
@@ -74,11 +74,11 @@ def main():
         Relu(),
         Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool3"),
         Flatten(),
-        FullyConnected(512),
+        FullyConnected(256),
         Relu(),
-        FullyConnected(512),
+        FullyConnected(256),
         Relu(),
-        FullyConnected(192),
+        FullyConnected(128),
         Relu(),
         FullyConnected(10),
         Softmax(),
