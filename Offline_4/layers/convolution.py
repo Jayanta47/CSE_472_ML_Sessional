@@ -7,6 +7,12 @@ from os import path, makedirs, remove
 from utils.initializers import glorot_uniform
 from utils.config import get_layer_num, increment_layer_num
 
+def replace_nan(arr, value):
+    is_nan = np.isnan(arr)
+    arr[is_nan] = value
+
+    return arr
+
 def getWindows(input, output_size, kernel_shape, padding_shape, stride=1, dilate=0):
     kernel_size = kernel_shape[0]
     working_pad = padding_shape[0]
@@ -61,14 +67,17 @@ class Convolution:
 
     def save_weights(self, dump_path):
         dump_cache = {
-            'cache': self.cache,
-            'grads': self.grads,
-            'momentum': self.momentum_cache,
-            'rmsprop': self.rmsprop_cache
+            'params': self.params,
+            # 'cache': self.cache,
+            # 'grads': self.grads,
+            # 'momentum': self.momentum_cache,
+            # 'rmsprop': self.rmsprop_cache
         }
         save_path = path.join(dump_path, self.name+'.pkl')
-        makedirs(path.dirname(save_path), exist_ok=True)
-        remove(save_path)
+        if path.exists(save_path):
+            remove(save_path)
+            makedirs(path.dirname(save_path), exist_ok=True)
+
         with open(save_path, 'wb') as d:
             pickle.dump(dump_cache, d)
 
@@ -79,13 +88,14 @@ class Convolution:
         read_path = path.join(dump_path, self.name+'.pkl')
         with open(read_path, 'rb') as r:
             dump_cache = pickle.load(r)
-        self.cache = dump_cache['cache']
-        self.grads = dump_cache['grads']
-        self.momentum_cache = dump_cache['momentum']
-        self.rmsprop_cache = dump_cache['rmsprop']
+        self.params = dump_cache['params']
+        # self.cache = dump_cache['cache']
+        # self.grads = dump_cache['grads']
+        # self.momentum_cache = dump_cache['momentum']
+        # self.rmsprop_cache = dump_cache['rmsprop']
     
 
-    def forward(self, X, save_cache=False):
+    def forward(self, X, save_cache=False, keep_prob = 1.0):
         """
         The forward pass of convolution
         :param x: input data of shape (N, C, H, W)
@@ -95,7 +105,7 @@ class Convolution:
         if self.name is None:
             self.name = '{}_{}'.format(self.type, get_layer_num(self.type))
             increment_layer_num(self.type)
-
+        # X = np.clip(X, -1e-15, 1-1e15)
         N, C, H, W = X.shape
         filter_shape_h, filter_shape_w = self.params['kernel_shape']
         
@@ -103,17 +113,6 @@ class Convolution:
             # shape = (filter_shape_h, filter_shape_w, C, self.params['filters'])
             shape = (self.params['filters'], C, filter_shape_h, filter_shape_w)
             self.params['W'], self.params['b'] = glorot_uniform(shape=shape)
-
-        # if self.params['padding'] == 'same':
-        #     pad_h = int(((H - 1)*self.params['stride'] + filter_shape_h - H) / 2)
-        #     pad_w = int(((W - 1)*self.params['stride'] + filter_shape_w - W) / 2)
-        #     n_H = H
-        #     n_W = W
-        # else:
-        #     pad_h = 0
-        #     pad_w = 0
-        #     n_H = int((H - filter_shape_h) / self.params['stride']) + 1
-        #     n_W = int((W - filter_shape_w) / self.params['stride']) + 1
 
         if self.params['padding'] != None:
             pad_h = self.params['padding']
@@ -151,8 +150,18 @@ class Convolution:
         # add bias to kernels   
         out += self.params['b']
 
-        self.cache['X'] = X
-        self.cache['wd'] = windows 
+        out = replace_nan(out, 1e-10)
+
+        Dropout_layer = np.random.uniform(0, 1, out.shape)
+        Dropout_layer = Dropout_layer < keep_prob
+        out = np.multiply(out, Dropout_layer)
+        out = out / keep_prob
+
+        if save_cache:
+            self.cache['X'] = X
+            self.cache['wd'] = windows 
+            self.cache['dropout'] = Dropout_layer
+            self.cache['keep_prob'] = keep_prob
 
         return out
 
@@ -161,7 +170,9 @@ class Convolution:
         :param dZ:
         :return:
         '''
-        print("Backprop of Conv Layer: ", self.name)
+        # print("Backprop of Conv Layer: ", self.name)
+
+        # dZ = np.clip(dZ, 1e-15, 1-1e-15)
         X = self.cache['X']
         windows = self.cache['wd']
         filter_shape_h, filter_shape_w = self.params['kernel_shape']
@@ -182,6 +193,11 @@ class Convolution:
         # print("dZ shape: ", dZ_windows.shape)
         # print(rot_kern.shape)
         
+        Dropout_layer = self.cache['dropout']
+        dZ = np.multiply(dZ, Dropout_layer)
+        keep_prob = self.cache['keep_prob']
+        dZ = dZ / keep_prob
+
         db = np.sum(dZ, axis=(0, 2, 3))
         
         dw = np.einsum('bihwkl,bohw->oikl', windows, dZ)
@@ -225,7 +241,7 @@ class Convolution:
 
         # print("rms", self.rmsprop_cache['db'].shape)
 
-    def apply_grads(self, learning_rate=0.01, l2_penalty=1e-4, optimization='adam', epsilon=1e-8,
+    def apply_grads(self, learning_rate=0.001, l2_penalty=1e-4, optimization='adam', epsilon=1e-8,
                     correct_bias=False, beta1=0.9, beta2=0.999, iter=999):
         if optimization != 'adam':
             self.params['W'] -= learning_rate * (self.grads['dW'] + l2_penalty * self.params['W'])

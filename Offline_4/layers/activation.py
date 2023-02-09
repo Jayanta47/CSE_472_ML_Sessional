@@ -9,8 +9,8 @@ class Relu:
     def has_weights(self):
         return self.has_units
 
-    def forward(self, x, save_cache=False):
-
+    def forward(self, x, save_cache=False, keep_prob = None):
+        # np.clip(x, 0, 1e6)
         self.mask = (x <= 0)
         out = x.copy()
         out[self.mask] = 0

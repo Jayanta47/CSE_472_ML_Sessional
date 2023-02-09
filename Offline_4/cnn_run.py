@@ -15,10 +15,11 @@ import numpy as np
 np.random.seed(42)
 
 def main():
+    image_shape = (64, 64)
     X_train, Y_train = getData(filepath="./dummy_data/sample_train.csv", 
-                               folder_path='./dummy_data/train')
+                               folder_path='./dummy_data/train', image_shape=image_shape)
     X_test, Y_test = getData(filepath="./dummy_data/sample_val.csv", 
-                            folder_path='./dummy_data/validation')
+                            folder_path='./dummy_data/validation', image_shape=image_shape)
 
     X_train = X_train / 255.0
     X_test = X_test / 255.0
@@ -59,36 +60,60 @@ def main():
     Softmax
     '''
 
+    # model = Model(
+    #     Convolution(filters=32, kernel_shape=(8, 8), stride=3, padding=0, name="conv1"),
+    #     Relu(),
+    #     Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool1"),
+    #     Convolution(filters=96, kernel_shape=(4, 4), stride=2, padding=2, name="conv2"),
+    #     Relu(),
+    #     Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool2"),
+    #     Convolution(filters=128, kernel_shape=(3, 3), stride=1, padding=1, name="conv3"),
+    #     Relu(),
+    #     Convolution(filters=192, kernel_shape=(3, 3), stride=1, padding=1, name="conv4"),
+    #     Relu(),
+    #     Convolution(filters=96, kernel_shape=(3, 3), stride=1, padding=1, name="conv5"),
+    #     Relu(),
+    #     Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool3"),
+    #     Flatten(),
+    #     FullyConnected(256),
+    #     Relu(),
+    #     FullyConnected(256),
+    #     Relu(),
+    #     FullyConnected(128),
+    #     Relu(),
+    #     FullyConnected(10),
+    #     Softmax(),
+    #     name='cnnALEX'
+    # )   
+
     model = Model(
-        Convolution(filters=32, kernel_shape=(8, 8), stride=3, padding=0, name="conv1"),
+        Convolution(filters=16, kernel_shape=(16, 16),stride=2, padding=0, name="conv1"),
         Relu(),
-        Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool1"),
-        Convolution(filters=96, kernel_shape=(4, 4), stride=2, padding=2, name="conv2"),
+        Pooling(kernel_shape=(2, 2), stride=2,mode='max', name="pool1"),
+        Convolution(filters=32, kernel_shape=(3, 3), stride=1, padding=1, name="conv2"),
         Relu(),
-        Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool2"),
-        Convolution(filters=128, kernel_shape=(3, 3), stride=1, padding=1, name="conv3"),
+        Convolution(filters=64, kernel_shape=(3, 3), stride=1, padding=1, name="conv3"),
         Relu(),
-        Convolution(filters=192, kernel_shape=(3, 3), stride=1, padding=1, name="conv4"),
-        Relu(),
-        Convolution(filters=96, kernel_shape=(3, 3), stride=1, padding=1, name="conv5"),
-        Relu(),
-        Pooling(kernel_shape=(3, 3), stride=2, mode = "max", name="pool3"),
+        Pooling(kernel_shape=(2, 2), stride=2, mode = "max", name="pool3"),
         Flatten(),
-        FullyConnected(256),
+        FullyConnected(units =256),
         Relu(),
-        FullyConnected(256),
+        FullyConnected(units =128),
         Relu(),
-        FullyConnected(128),
-        Relu(),
-        FullyConnected(10),
+        # FullyConnected(units= 32),
+        # Relu(),
+        FullyConnected(units = 10),
         Softmax(),
-        name='cnnALEX'
-    )   
+        name='cnnALEXmini'
+    )
+
+    
     
     model.set_loss(CategoricalCrossEntropy)
-    model.train(X_train, Y_train, epochs=2)
+    # model.set_batch_size(64)
+    model.train(X_train, Y_train, epochs=2, batch_size=64)
 
-    # print("Testing Accuracy: {}".format(model.evaluate(X_test, Y_test.T)))
+    print("Testing Accuracy: {}, Macro-f1: {}".format(*model.evaluate(X_test, Y_test)))
 
 
 if __name__ == "__main__":

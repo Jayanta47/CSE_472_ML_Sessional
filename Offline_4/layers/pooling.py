@@ -54,7 +54,7 @@ class Pooling:
     def has_weights(self):
         return self.has_units
 
-    def forward(self, X, save_cache=False):
+    def forward(self, X, save_cache=False, keep_prob = None):
         '''
         N: number of data
         C: number of channels
@@ -65,7 +65,7 @@ class Pooling:
         if self.name is None:
             self.name = '{}_{}'.format(self.type, get_layer_num(self.type))
             increment_layer_num(self.type)
-        
+        X = np.clip(X, 1e-15, 1. - 1e-15)
         N, C, H, W = X.shape
         filter_shape_h, filter_shape_w = self.params['kernel_shape']
 
@@ -89,7 +89,8 @@ class Pooling:
         return x == np.max(x)
 
     def backward(self, dA):
-        print("Backprop of Pooling Layer: ", self.name)
+        # print("Backprop of Pooling Layer: ", self.name)
+        # dA = np.clip(dA, 1e-15, 1-1e-15)
         A = self.cache['A']
         filter_shape_h, filter_shape_w = self.params['kernel_shape']
 
@@ -136,70 +137,6 @@ if __name__ == "__main__":
     print(y.shape)
 
 
-
-
-# def pool(A, kernel_size, stride, padding=0, pool_mode='max'):
-#     """Perform 2D pooling on the input array."""
-   
-
-#     (N, C, H, W) = A.shape
-#     # Padding
-#     A = np.pad(A, pad_width=((0,), (0,), (padding, ), (padding, )), mode='constant', constant_values=(0.,))
-
-#     # Window view of A
-#     output_shape = (N, C, (A.shape[0] - kernel_size) // stride + 1,
-#                     (A.shape[1] - kernel_size) // stride + 1)
-    
-#     batch_str, channel_str, kern_h_str, kern_w_str = A.strides
-
-#     # shape_w = (output_shape[0], output_shape[1], kernel_size, kernel_size)
-#     shape_w = (N, C, output_shape[0], output_shape[1], kernel_size, kernel_size)
-#     # strides_w = (stride*A.strides[0], stride*A.strides[1], A.strides[0], A.strides[1])
-#     strides_w = (batch_str, channel_str, stride * kern_h_str, stride * kern_w_str, kern_h_str, kern_w_str)
-
-#     A_w = as_strided(A, shape_w, strides_w)
-
-#     # Return the result of pooling
-#     if pool_mode == 'max':
-#         return A_w.max(axis=(2, 3))
-#     elif pool_mode == 'avg':
-#         return A_w.mean(axis=(2, 3))
-
-
-
-# def forward_propagate(X, params, save_cache=False):
-#         '''
-#         :param X:
-#         :param save_cache:
-#         :return:
-#         '''
-
-#         (N, C, H, W) = X.shape
-#         filter_shape_h, filter_shape_w = params['kernel_shape']
-
-#         n_H = int(1 + (H - filter_shape_h) / params['stride'])
-#         n_W = int(1 + (W - filter_shape_w) / params['stride'])
-#         n_C = C
-
-#         A = np.zeros((N,n_C, n_H, n_W))
-
-#         for i in range(N):
-#             for c in range(n_C):
-#                 for h in range(n_H):
-#                     for w in range(n_W):
-
-#                         vert_start = h * params['stride']
-#                         vert_end = vert_start + filter_shape_h
-#                         horiz_start = w * params['stride']
-#                         horiz_end = horiz_start + filter_shape_w
-#                         if params['mode'] == 'average':
-#                             A[i, c, h, w] = np.mean(X[i, c, vert_start: vert_end, horiz_start: horiz_end])
-#                         else:
-#                             A[i, c, h, w] = np.max(X[i, c, vert_start: vert_end, horiz_start: horiz_end])
-#         # if save_cache:
-#         #     self.cache['A'] = X
-
-#         return A
 
 
 

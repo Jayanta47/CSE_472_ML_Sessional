@@ -9,8 +9,9 @@ class Flatten:
     def has_weights(self):
         return self.has_units
 
-    def forward(self, Z, save_cache=False):
+    def forward(self, Z, save_cache=False,keep_prob = None):
         shape = Z.shape
+        # Z = np.clip(Z, 1e-15, 1. - 1e-15)
         if save_cache:
             self.shape = shape
         data = np.ravel(Z).reshape(shape[0], -1)
@@ -19,6 +20,7 @@ class Flatten:
         return data
 
     def backward(self, Z):
+        # np.clip(Z, 0, 1e6)
         if self.transpose:
             Z = Z.T
         return Z.reshape(self.shape)

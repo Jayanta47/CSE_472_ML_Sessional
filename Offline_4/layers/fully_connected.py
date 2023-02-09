@@ -28,16 +28,18 @@ class FullyConnected:
     def has_weights(self):
         return self.has_units
 
-    def save_weights(self, path):
+    def save_weights(self, dump_path):
         dump_cache = {
             'cache': self.cache,
             'grads': self.grads,
             'momentum': self.momentum_cache,
             'rms_prop': self.rmsprop_cache,
         }
-        save_path = path.join(path, self.name + '.pkl')
+        save_path = path.join(dump_path, self.name + '.pkl')
+        if path.exists(save_path):
+            remove(save_path)
+
         makedirs(path.dirname(save_path), exist_ok=True)
-        remove(save_path)
         with open(save_path, 'wb') as f:
             pickle.dump(dump_cache, f)
 
@@ -54,28 +56,39 @@ class FullyConnected:
             self.momentum_cache = dump_cache['momentum']
             self.rmsprop_cache = dump_cache['rms_prop']
 
-    def forward(self, x, save_cache=False):
+    def forward(self, x, save_cache=False, keep_prob=1):
         if self.name is None:
             self.name = '{}_{}'.format(self.type, get_layer_num(self.type))
             increment_layer_num(self.type)
-        
+        # x = np.clip(x, 1e-15, 1. - 1e-15)
         if 'W' not in self.params:
             self.params['W'], self.params['b'] = he_initializer((x.shape[0], self.units))
 
         W, b = self.params['W'], self.params['b']
         out = np.dot(W, x) + b
-
+        Dropout_layer = np.random.rand(*out.shape) < keep_prob
+        out = np.multiply(out, Dropout_layer)
+        out /= keep_prob
         if save_cache:
             self.cache['x'] = x
+            self.cache['Dropout_layer'] = Dropout_layer
+            self.cache['keep_prob'] = keep_prob
 
         return out
 
     def backward(self, dZ):
+        # np.clip(dZ, 0, 1e6)
         W, b = self.params['W'], self.params['b']
         x = self.cache['x']
         batch_size = dZ.shape[1]
 
+        Dropout_layer = self.cache['Dropout_layer']
+        keep_prob = self.cache['keep_prob']
+        dZ = np.multiply(dZ, Dropout_layer)
+
         dx = np.dot(W.T, dZ)
+
+        dx /= keep_prob
         dW = np.dot(dZ, x.T) / batch_size
         db = np.sum(dZ, axis=1, keepdims=True)
 
